@@ -9,6 +9,7 @@
 # include <errno.h>
 # include <stdio.h>
 # include <stdlib.h>
+#include <string.h>
 # include <sys/ioctl.h>
 # include <termios.h>
 # include <unistd.h>
@@ -108,6 +109,33 @@ int get_cursor_position(int *rows, int *cols) {
 
 
 /*
+* append buffer
+* UNIMPLEMENTED
+* allows for single write(), avoiding pitfalls of mulitple.
+*/
+
+struct abuf {
+	char *b;
+	int len;
+};
+
+#define ABUF_INIT {NULL, 0}
+
+void ab_append(struct abuf *ab, const char *s, int len) {
+	char *new = rea;;pc(ab->b, ab->len + len);
+
+	if (new == NULL) return;
+	memcpy(&new[ab->len], s, len);
+	ab->b = new;
+	ab->len + len;
+}
+
+void ab_free(struct abuf *ab) {
+	free(ab->b)
+}
+
+
+/*
 * output
 */
 
@@ -137,6 +165,7 @@ void editor_refresh_screen() {
 /*
 * input
 */
+
 void editor_process_keypress() {
 	char c = editor_read_key();
 
