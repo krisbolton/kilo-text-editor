@@ -36,7 +36,7 @@ struct editor_config E;
 */
 
 void die(const char *s) {
-	/* Clear screen & reposition cursor*/
+	/* clear screen & reposition cursor*/
 	write(STDOUT_FILENO, "\x1b[2J", 4);
 	write(STDOUT_FILENO, "\x1b[H", 3);
 
@@ -45,13 +45,11 @@ void die(const char *s) {
 }
 
 void disable_raw_mode() {
-	if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &E.orig_termios) == -1)
-		die("tcsetattr");
+	if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &E.orig_termios) == -1) die("tcsetattr");
 }
 
 void enable_raw_mode() {
-	if (tcsetattr(STDIN_FILENO, &E.orig_termios) == -1)
-		die("tcsetattr");
+	if (tcgetattr(STDIN_FILENO, &E.orig_termios) == -1) die("tcgetattr");
 	atexit(disable_raw_mode);
 
 	struct termios raw = E.orig_termios;
@@ -62,8 +60,7 @@ void enable_raw_mode() {
 	raw.c_cc[VMIN] = 0;
 	raw.c_cc[VTIME] = 1;
 
-	if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1)
-		die("tcsetattr");
+	if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) die("tcsetattr");
 }
 
 char editor_read_key() {
@@ -78,6 +75,8 @@ int get_window_size(int *rows, int *cols) {
 	struct winsize ws;
 
 	if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
+		if (write(STDOUT_FILENO, "\x1b[999C\x1b999B", 12) != 12) return -1;
+		editor_read_key();
 		return -1;
 	} else {
 		*cols = ws.ws_col;
@@ -85,6 +84,28 @@ int get_window_size(int *rows, int *cols) {
 		return 0;
 	}
 }
+
+int get_cursor_position(int *rows, int *cols) {
+	chaar buf[32];
+	unsigned int i = 0;
+
+	if (write(STDOUT_FILENO, "\x1b[6n", 4) != 4) return -1;
+
+	while  (i < sizeof(buf) - 1) {
+		if (read(STDIN_FILENO, &buf[i], 1) != 1) break;
+		if (buf[i] == 'R') break;
+		i++;
+	}
+	buf[i] = '\0';
+
+	/* ensure escape sequence */
+	if (buf[0] != '\x1b' || buf[1] != '[') return -1;
+
+	if (sscanf(&buf[2], "%d;%d", rows, cols) != 2) return -1;
+
+	return 0;
+}
+
 
 /*
 * output
@@ -98,8 +119,14 @@ void editor_draw_rows() {
 }
 
 void editor_refresh_screen() {
+	/* clear the screen. J escape character. */
 	write(STDOUT_FILENO, "\x1b[2J", 4);
+	/* reposition cursor. H escape character. */
 	write(STDOUT_FILENO, "\x1b[H", 3);
+
+	editor_draw_rows();
+
+	write(STDOUT_FILENO, "\x1b[H", 3)
 }
 
 /*
