@@ -145,7 +145,7 @@ void editor_draw_rows(struct abuf *ab) {
 	for (y = 0; y < E.screenrows; y++) {
 		ab_append(ab, "~", 1);
 
-
+		ab_append(ab, "\x1b[K", 3);
 		if (y < E.screenrows - 1) {
 			ab_append(ab, "\r\n", 2);
 		}
@@ -157,7 +157,6 @@ void editor_refresh_screen() {
 
 	/* clear screen, reposition cursor and hide during paint */
 	ab_append(&ab, "\x1b[?25l", 6);
-	ab_append(&ab, "\x1b[2J", 4);
 	ab_append(&ab, "\x1b[H", 3);
 
 	editor_draw_rows(&ab);
