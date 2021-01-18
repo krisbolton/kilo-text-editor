@@ -87,7 +87,7 @@ int get_window_size(int *rows, int *cols) {
 }
 
 int get_cursor_position(int *rows, int *cols) {
-	chaar buf[32];
+	char buf[32];
 	unsigned int i = 0;
 
 	if (write(STDOUT_FILENO, "\x1b[6n", 4) != 4) return -1;
@@ -122,7 +122,7 @@ struct abuf {
 #define ABUF_INIT {NULL, 0}
 
 void ab_append(struct abuf *ab, const char *s, int len) {
-	char *new = rea;;pc(ab->b, ab->len + len);
+	char *new = realloc(ab->b, ab->len + len);
 
 	if (new == NULL) return;
 	memcpy(&new[ab->len], s, len);
