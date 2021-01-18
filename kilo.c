@@ -9,7 +9,7 @@
 # include <errno.h>
 # include <stdio.h>
 # include <stdlib.h>
-#include <string.h>
+# include <string.h>
 # include <sys/ioctl.h>
 # include <termios.h>
 # include <unistd.h>
@@ -76,7 +76,7 @@ int get_window_size(int *rows, int *cols) {
 	struct winsize ws;
 
 	if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
-		if (write(STDOUT_FILENO, "\x1b[999C\x1b999B", 12) != 12) return -1;
+		if (write(STDOUT_FILENO, "\x1b[999C\x1b[999B", 12) != 12) return -1;
 		editor_read_key();
 		return -1;
 	} else {
@@ -131,7 +131,7 @@ void ab_append(struct abuf *ab, const char *s, int len) {
 }
 
 void ab_free(struct abuf *ab) {
-	free(ab->b)
+	free(ab->b);
 }
 
 
@@ -139,27 +139,32 @@ void ab_free(struct abuf *ab) {
 * output
 */
 
-void editor_draw_rows() {
+void editor_draw_rows(struct abuf *ab) {
 	int y;
 	/* draw ~ at the start of all lines */
 	for (y = 0; y < E.screenrows; y++) {
-		write(STDOUT_FILENO, "~", 1);
+		ab_append(ab, "~", 1);
+
 
 		if (y < E.screenrows - 1) {
-			write(STDOUT_FILENO, "\r\n", 2);
+			ab_append(ab, "\r\n", 2);
 		}
 	}
 }
 
 void editor_refresh_screen() {
-	/* clear the screen. J escape character. */
-	write(STDOUT_FILENO, "\x1b[2J", 4);
-	/* reposition cursor. H escape character. */
-	write(STDOUT_FILENO, "\x1b[H", 3);
+	struct abuf ab = ABUF_INIT;
 
-	editor_draw_rows();
+	/* clear screen & reposition cursor*/
+	ab_append(&ab, "\x1b[2J", 4);
+	ab_append(&ab, "\x1b[H", 3);
 
-	write(STDOUT_FILENO, "\x1b[H", 3)
+	editor_draw_rows(&ab);
+
+	ab_append(&ab, "\x1b[H", 3);
+
+	write(STDOUT_FILENO, ab.b, ab.len);
+	ab_free(&ab);
 }
 
 /*
@@ -171,7 +176,7 @@ void editor_process_keypress() {
 
 	switch (c) {
 		case CTRL_KEY('q'):
-		/* Clear screen & reposition cursor*/
+		/* clear screen & reposition cursor*/
 		write(STDOUT_FILENO, "\x1b[2J", 4);
 		write(STDOUT_FILENO, "\x1b[H", 3);
 
