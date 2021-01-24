@@ -57,10 +57,10 @@ void enable_raw_mode() {
 	atexit(disable_raw_mode);
 
 	struct termios raw = E.orig_termios;
-	raw.c_lflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
-	raw.c_lflag &= ~(OPOST);
-	raw.c_lflag &= ~(CS8);
-	raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
+	raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+	raw.c_oflag &= ~(OPOST);
+	raw.c_cflag &= ~(CS8);
+	raw.c_lflag |= (ECHO | ICANON | IEXTEN | ISIG);
 	raw.c_cc[VMIN] = 0;
 	raw.c_cc[VTIME] = 1;
 
@@ -73,6 +73,7 @@ char editor_read_key() {
 	while ((nread = read(STDIN_FILENO, &c, 1)) != 1) {
 		if (nread == -1 && errno != EAGAIN) die("read");
 	}
+	return c;
 }
 
 int get_cursor_position(int *rows, int *cols) {
