@@ -27,6 +27,7 @@
 */
 
 struct editor_config {
+	int cx, cy;
 	int screenrows;
 	int screencols;
 	struct termios orig_termios;
@@ -74,20 +75,6 @@ char editor_read_key() {
 	}
 }
 
-int get_window_size(int *rows, int *cols) {
-	struct winsize ws;
-
-	if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
-		if (write(STDOUT_FILENO, "\x1b[999C\x1b[999B", 12) != 12) return -1;
-		editor_read_key();
-		return -1;
-	} else {
-		*cols = ws.ws_col;
-		*rows = ws.ws_row;
-		return 0;
-	}
-}
-
 int get_cursor_position(int *rows, int *cols) {
 	char buf[32];
 	unsigned int i = 0;
@@ -107,6 +94,19 @@ int get_cursor_position(int *rows, int *cols) {
 	if (sscanf(&buf[2], "%d;%d", rows, cols) != 2) return -1;
 
 	return 0;
+}
+
+int get_window_size(int *rows, int *cols) {
+	struct winsize ws;
+
+	if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
+		if (write(STDOUT_FILENO, "\x1b[999C\x1b[999B", 12) != 12) return -1;
+		return get_cursor_position(rows, cols);
+	} else {
+		*cols = ws.ws_col;
+		*rows = ws.ws_row;
+		return 0;
+	}
 }
 
 
@@ -177,7 +177,10 @@ void editor_refresh_screen() {
 
 	editor_draw_rows(&ab);
 
-	ab_append(&ab, "\x1b[H", 3);
+	char buf[32];
+	snprintf(buf, sizeof(buf), "\x1b[%d;%dH", E.cy + 1, E.cx + 1);
+	ab_append(&ab, buf, strlen(bif));
+
 	ab_append(&ab, "\x1b[?25h", 6);
 
 	write(STDOUT_FILENO, ab.b, ab.len);
@@ -188,17 +191,39 @@ void editor_refresh_screen() {
 * input
 */
 
+void editor_move_cursor(char key) {
+	switch (key) {
+		case 'a':
+			E.cx--;
+			break;
+		case 'd':
+			E.cx++;
+			break;
+		case 'w':
+			E.cy--;
+			break;
+		case 's':
+			E.cy++;
+			break;
+	}
+}
+
 void editor_process_keypress() {
 	char c = editor_read_key();
 
 	switch (c) {
 		case CTRL_KEY('q'):
-		/* clear screen & reposition cursor*/
-		write(STDOUT_FILENO, "\x1b[2J", 4);
-		write(STDOUT_FILENO, "\x1b[H", 3);
-
-		exit(0);
-		break;
+			/* clear screen & reposition cursor*/
+			write(STDOUT_FILENO, "\x1b[2J", 4);
+			write(STDOUT_FILENO, "\x1b[H", 3);
+			exit(0);
+			break;
+		case 'w':
+		case 's':
+		case 'a':
+		case 'd':
+			editor_move_cursor(c);
+			break;
 	}
 }
 
@@ -207,6 +232,9 @@ void editor_process_keypress() {
 */
 
 void init_editor() {
+	E.cx = 0;
+	E.cy = 0;
+
 	if (get_window_size(&E.screenrows, &E.screencols) == -1) die("get_window_size");
 }
 
